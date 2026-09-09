@@ -1,0 +1,72 @@
+# Конфигурация помощника кандидата hh.ru.
+# Полное описание параметров — в README.md.
+
+settings:
+  # ID резюме, которым откликаемся (посмотреть: hhhelper resumes)
+  resume_id: ""
+  candidate_name: "Иван Иванов"
+  email: "ivan@example.com"
+  # Пауза между откликами, секунды [минимум, максимум]
+  delay_seconds: [5, 15]
+  # Сколько откликов максимум за один запуск
+  max_per_run: 25
+  # Дневной потолок (у hh.ru свой лимит около 200 откликов в сутки)
+  max_per_day: 190
+  # Спрашивать подтверждение перед каждым откликом
+  interactive: true
+
+letters:
+  - name: backend
+    title: "Бэкенд-разработка"
+    default: true
+    match:
+      keywords: ["python", "django", "fastapi", "backend"]
+    text: |
+      Здравствуйте!
+
+      Меня заинтересовала вакансия «{vacancy_name}» в {employer}.
+      Последние несколько лет занимаюсь бэкендом на Python: сервисы на FastAPI и Django,
+      PostgreSQL, очереди, покрытие тестами и CI.
+
+      Буду рад обсудить задачи команды.
+
+      С уважением,
+      {candidate_name}
+
+  - name: data
+    title: "Аналитика и данные"
+    match:
+      keywords: ["аналитик", "data", "sql", "etl"]
+    text: |
+      Здравствуйте!
+
+      Откликаюсь на вакансию «{vacancy_name}».
+      Работал с аналитическими задачами: SQL, Python (pandas), выгрузки и дашборды.
+
+      С уважением,
+      {candidate_name}
+
+filters:
+  - name: python-remote
+    description: "Удалённый Python-бэкенд от 200к"
+    enabled: true
+    letter: backend
+    search:
+      text: "Python разработчик"
+      # 1 — Москва, 2 — Санкт-Петербург, 113 — вся Россия
+      area: [113]
+      experience: between1And3
+      schedule: remote
+      employment: [full]
+      period: 7
+      order_by: publication_time
+      per_page: 50
+      pages: 2
+    rules:
+      title_exclude: ["1С", "стажер", "re:\\b(lead|head)\\b"]
+      text_exclude: ["криптовалют", "ставки"]
+      employer_exclude: ["Кадровое агентство"]
+      salary_min: 200000
+      require_salary: false
+      skip_with_test: true
+      max_applications: 15

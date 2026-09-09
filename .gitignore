@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.env
+
+# Локальные данные пользователя
+config.yaml
+config.yml
+config.json
+token.json
+*.db
+*.sqlite3
+hhhelper.log
