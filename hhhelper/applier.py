@@ -133,12 +133,15 @@ class Applier:
         observer: Optional[RunObserver] = None,
         sleep: Callable[[float], None] = time.sleep,
         rng: Optional[random.Random] = None,
+        should_stop: Optional[Callable[[], bool]] = None,
     ) -> None:
         self.config = config
         self.client = client
         self.history = history
         self.prompt = prompt or Prompt()
         self.observer = observer or RunObserver()
+        # Внешний сигнал «остановись» — например кнопка «Стоп» в Telegram.
+        self.should_stop = should_stop or (lambda: False)
         self.book = LetterBook(config)
         self._sleep = sleep
         self._rng = rng or random.Random()
@@ -162,6 +165,9 @@ class Applier:
 
         interactive = options.interactive
         for flt in filters:
+            if self.should_stop():
+                report.stopped_reason = "остановлено кандидатом"
+                return report
             if budget <= 0:
                 report.stopped_reason = report.stopped_reason or "достигнут лимит откликов на запуск"
                 break
@@ -174,6 +180,9 @@ class Applier:
                 is_applied=self.history.has_applied,
             )
             for vacancy in self._search(flt):
+                if self.should_stop():
+                    report.stopped_reason = "остановлено кандидатом"
+                    return report
                 if budget <= 0 or applied_by_filter >= filter_budget:
                     break
                 report.scanned += 1

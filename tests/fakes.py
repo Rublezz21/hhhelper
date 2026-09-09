@@ -80,3 +80,82 @@ class FakeClient:
 
     def me(self) -> Dict[str, Any]:
         return {"first_name": "Иван", "last_name": "Иванов"}
+
+
+class FakeTelegramApi:
+    """Заглушка Telegram Bot API: копит отправленные сообщения и правки."""
+
+    def __init__(self) -> None:
+        self.sent: List[Dict[str, Any]] = []
+        self.edited: List[Dict[str, Any]] = []
+        self.keyboards: List[Dict[str, Any]] = []
+        self.answers: List[Dict[str, Any]] = []
+        self._next_message_id = 100
+
+    # -- методы, которые использует бот -------------------------------------
+
+    def send_message(self, chat_id, text, keyboard=None, *, preview=False):
+        self._next_message_id += 1
+        message = {"message_id": self._next_message_id, "chat_id": chat_id, "text": text, "keyboard": keyboard}
+        self.sent.append(message)
+        return message
+
+    def edit_message(self, chat_id, message_id, text, keyboard=None):
+        self.edited.append({"chat_id": chat_id, "message_id": message_id, "text": text, "keyboard": keyboard})
+        return {"message_id": message_id}
+
+    def edit_keyboard(self, chat_id, message_id, keyboard=None):
+        self.keyboards.append({"chat_id": chat_id, "message_id": message_id, "keyboard": keyboard})
+        return {"message_id": message_id}
+
+    def answer_callback(self, callback_id, text="", alert=False):
+        self.answers.append({"id": callback_id, "text": text, "alert": alert})
+        return True
+
+    def get_me(self):
+        return {"username": "hh_helper_bot", "id": 1}
+
+    # -- помощники для тестов ------------------------------------------------
+
+    @property
+    def texts(self) -> List[str]:
+        return [message["text"] for message in self.sent]
+
+    @property
+    def last_text(self) -> str:
+        return self.sent[-1]["text"] if self.sent else ""
+
+    @property
+    def last_keyboard(self) -> List[str]:
+        """Callback-данные кнопок последнего сообщения."""
+        keyboard = self.sent[-1]["keyboard"] if self.sent else None
+        if not keyboard:
+            return []
+        return [button["callback_data"] for row in keyboard["inline_keyboard"] for button in row]
+
+    def buttons(self, index: int = -1) -> List[str]:
+        keyboard = self.sent[index]["keyboard"]
+        if not keyboard:
+            return []
+        return [button["text"] for row in keyboard["inline_keyboard"] for button in row]
+
+
+def message_update(text: str, chat_id: int = 555, user_id: int = 555, update_id: int = 1) -> Dict[str, Any]:
+    """Событие «пришло текстовое сообщение»."""
+    return {
+        "update_id": update_id,
+        "message": {"message_id": 1, "chat": {"id": chat_id}, "from": {"id": user_id}, "text": text},
+    }
+
+
+def callback_update(data: str, chat_id: int = 555, user_id: int = 555, update_id: int = 1) -> Dict[str, Any]:
+    """Событие «нажата инлайн-кнопка»."""
+    return {
+        "update_id": update_id,
+        "callback_query": {
+            "id": f"cb-{update_id}",
+            "from": {"id": user_id},
+            "data": data,
+            "message": {"message_id": 10, "chat": {"id": chat_id}},
+        },
+    }

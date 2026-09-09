@@ -35,6 +35,7 @@ from .config import (
     load_config,
 )
 from .letters import LetterBook, render
+from .telegram.api import TelegramError
 from .models import Vacancy
 from .storage import History
 
@@ -57,6 +58,11 @@ settings:
   max_per_day: 190
   # Спрашивать подтверждение перед каждым откликом
   interactive: true
+  # Панель управления в Telegram (можно оставить пустым и задать HH_TELEGRAM_TOKEN)
+  telegram:
+    token: ""
+    # Telegram ID тех, кому разрешено управлять панелью (узнать: команда /id боту)
+    allowed_users: []
 
 letters:
   - name: backend
@@ -638,6 +644,64 @@ def cmd_history(ctx: Context) -> int:
     return 0
 
 
+def cmd_bot(ctx: Context) -> int:
+    """Запускает панель управления в Telegram."""
+    from .storage import History as _History
+    from .telegram import TelegramApi, TelegramBot, TelegramSettings
+
+    config = ctx.config
+    args = ctx.args
+    if args.allow:
+        telegram = dict(config.settings.telegram)
+        users = [int(user) for user in (telegram.get("allowed_users") or [])]
+        for user in args.allow:
+            if int(user) not in users:
+                users.append(int(user))
+        telegram["allowed_users"] = users
+        config.settings.telegram = telegram
+        config.save()
+        print(f"Доступ к панели разрешён: {', '.join(str(u) for u in users)}")
+
+    settings = TelegramSettings.from_config(config, token=args.token or "", claim=args.claim)
+    if not settings.token:
+        print(
+            "Не задан токен бота. Создайте бота у @BotFather и передайте токен:\n"
+            "  hhhelper bot --token 123456:AA...\n"
+            "или задайте переменную HH_TELEGRAM_TOKEN, или settings.telegram.token в конфиге."
+        )
+        return 1
+
+    api = TelegramApi(settings.token)
+    me = api.get_me()
+    print(Style.green(f"Бот @{me.get('username', '?')} запущен."))
+    if settings.allowed_users:
+        print(Style.dim("Доступ разрешён: " + ", ".join(str(user) for user in settings.allowed_users)))
+    elif settings.claim:
+        print(Style.yellow("Первый, кто напишет боту /start, станет владельцем панели."))
+    else:
+        print(Style.yellow(
+            "Список allowed_users пуст: бот подскажет ваш Telegram ID. "
+            "Добавьте его командой `hhhelper bot --allow ID` или запустите с --claim."
+        ))
+    print(Style.dim("Остановить: Ctrl+C"))
+
+    db_path = getattr(args, "db", None) or config.settings.database_path
+    bot = TelegramBot(
+        config,
+        api,
+        settings,
+        history_factory=lambda: _History(db_path),
+        client_factory=lambda: HHClient(
+            ctx.token_store.access_token, user_agent=config.settings.user_agent
+        ),
+    )
+    try:
+        bot.run_forever()
+    except KeyboardInterrupt:
+        print("\nПанель остановлена.")
+    return 0
+
+
 def cmd_sync(ctx: Context) -> int:
     """Импортирует отклики с hh.ru, чтобы не дублировать их локально."""
     ids = ctx.client.negotiations_vacancy_ids()
@@ -909,6 +973,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("sync", help="импортировать отклики с hh.ru в локальную историю").set_defaults(func=cmd_sync)
 
+    p_bot = sub.add_parser("bot", help="запустить панель управления в Telegram")
+    p_bot.add_argument("--token", help="токен бота от @BotFather (или HH_TELEGRAM_TOKEN)")
+    p_bot.add_argument("--allow", action="append", help="разрешить доступ Telegram ID (можно несколько)")
+    p_bot.add_argument("--claim", action="store_true", help="первый написавший станет владельцем панели")
+    p_bot.set_defaults(func=cmd_bot)
+
     return parser
 
 
@@ -925,6 +995,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ctx = Context(args)
     try:
         return int(args.func(ctx) or 0)
+    except TelegramError as exc:
+        print(Style.red(f"Telegram: {exc}"), file=sys.stderr)
+        return 1
     except (ConfigError, AuthError, HHApiError) as exc:
         print(Style.red(f"Ошибка: {exc}"), file=sys.stderr)
         return 1

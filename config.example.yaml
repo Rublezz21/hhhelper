@@ -14,6 +14,11 @@ settings:
   max_per_day: 190
   # Спрашивать подтверждение перед каждым откликом
   interactive: true
+  # Панель управления в Telegram (можно оставить пустым и задать HH_TELEGRAM_TOKEN)
+  telegram:
+    token: ""
+    # Telegram ID тех, кому разрешено управлять панелью (узнать: команда /id боту)
+    allowed_users: []
 
 letters:
   - name: backend

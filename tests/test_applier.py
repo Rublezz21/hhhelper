@@ -181,6 +181,35 @@ class TestApplyFlow(ApplierTestCase):
         self.assertEqual(client.applications, [])
 
 
+class TestExternalStop(ApplierTestCase):
+    """Внешний сигнал остановки — им пользуется кнопка «Стоп» в Telegram."""
+
+    def test_stops_before_first_vacancy(self):
+        client = FakeClient([make_vacancy("1"), make_vacancy("2")])
+        applier = Applier(
+            self.config, client, self.history, sleep=lambda s: None, should_stop=lambda: True
+        )
+        report = applier.run(RunOptions(interactive=False))
+        self.assertEqual(client.applications, [])
+        self.assertEqual(report.stopped_reason, "остановлено кандидатом")
+
+    def test_stops_between_vacancies(self):
+        flag = {"stop": False}
+        client = FakeClient([make_vacancy("1"), make_vacancy("2"), make_vacancy("3")])
+
+        def stop_after_first():
+            if client.applications:
+                flag["stop"] = True
+            return flag["stop"]
+
+        applier = Applier(
+            self.config, client, self.history, sleep=lambda s: None, should_stop=stop_after_first
+        )
+        report = applier.run(RunOptions(interactive=False))
+        self.assertEqual(len(client.applications), 1)
+        self.assertEqual(report.stopped_reason, "остановлено кандидатом")
+
+
 class TestErrors(ApplierTestCase):
     def test_already_applied_recorded_as_applied(self):
         error = HHApiError("уже откликались", 403, {"errors": [{"value": "already_applied"}]})

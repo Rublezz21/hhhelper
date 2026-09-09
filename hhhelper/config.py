@@ -280,6 +280,8 @@ class Settings:
     currency_rates: Dict[str, float] = field(default_factory=dict)
     #: Подтверждать каждый отклик вручную.
     interactive: bool = True
+    #: Настройки панели управления в Telegram (token, allowed_users).
+    telegram: Dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, data: Optional[Dict[str, Any]]) -> "Settings":
@@ -309,6 +311,7 @@ class Settings:
             database=str(data.get("database") or ""),
             currency_rates={str(k).upper(): float(v) for k, v in (data.get("currency_rates") or {}).items()},
             interactive=bool(data.get("interactive", True)),
+            telegram=dict(data.get("telegram") or {}),
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -326,6 +329,8 @@ class Settings:
             data["database"] = self.database
         if self.currency_rates:
             data["currency_rates"] = self.currency_rates
+        if self.telegram:
+            data["telegram"] = self.telegram
         return data
 
     @property
