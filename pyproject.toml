@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hhhelper"
+version = "1.0.0"
+description = "Помощник кандидата для hh.ru: автоматические отклики по фильтрам с выбором сопроводительных писем"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+dependencies = [
+    "requests>=2.28",
+    "PyYAML>=6.0",
+]
+
+[project.scripts]
+hhhelper = "hhhelper.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["hhhelper*"]
